@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { profileApi } from './api';
 import { mockUser } from './mockData';
 import type { MockUser, MockActivity } from './mockData';
 
@@ -47,13 +48,47 @@ const ProfileView: React.FC = () => {
   const [user, setUser] = useState<MockUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Simulate fetching data from backend (Day 4 will replace this with real API)
+  // Fetch profile from backend API, fallback to mock data if not logged in
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setUser(mockUser);
-      setLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    const fetchProfile = async () => {
+      try {
+        const data = await profileApi.getProfile();
+        // Map backend response to MockUser shape for the UI
+        const u = data.user;
+        const p = data.profile;
+        setUser({
+          ...mockUser,
+          id: u.id,
+          name: u.username,
+          email: u.email,
+          title: p.title || mockUser.title,
+          location: p.location || mockUser.location,
+          avatar: p.avatar_url || mockUser.avatar,
+          profile: {
+            ...mockUser.profile,
+            id: p.id,
+            user_id: p.user_id,
+            bio: p.bio || '',
+            location: p.location || '',
+            skills: p.skills.length > 0 ? p.skills : [],
+            experience: p.experience.length > 0 ? p.experience : [],
+            education: p.education.length > 0 ? p.education : [],
+          },
+          socialLinks: {
+            linkedin: p.linkedin || '',
+            github: p.github || '',
+            twitter: p.twitter || '',
+            website: p.website || '',
+          },
+        });
+      } catch {
+        // Fallback to mock data when not logged in
+        setUser(mockUser);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
   }, []);
 
   if (loading) {

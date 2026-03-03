@@ -1,15 +1,10 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from config import Config
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-
-# Import models
-from models.user import User, db as user_db
-from models.profile import Profile, Skill, Experience, Education, db as profile_db
 
 # Create Flask app
 app = Flask(__name__)
@@ -18,23 +13,22 @@ app.config.from_object(Config)
 # Initialize extensions
 CORS(app)
 
-# Initialize database
-db = SQLAlchemy(app)
+# Initialize database with the app
+from models.user import db
+db.init_app(app)
 
-def setup_database():
-    """Setup database tables"""
-    with app.app_context():
-        db.create_all()
-        print("✅ Database tables created successfully!")
+# Import and register blueprints
+from api.auth import auth_bp
+from api.profile import profile_bp
 
-# Create a function to initialize the app
-def create_app():
-    """Application factory function"""
-    return app
+app.register_blueprint(auth_bp)
+app.register_blueprint(profile_bp)
+
+# Create database tables
+with app.app_context():
+    from models.profile import Profile  # noqa: ensure Profile model is loaded
+    db.create_all()
+    print("Database tables created successfully!")
 
 if __name__ == '__main__':
-    # Setup database tables
-    setup_database()
-    
-    # Run the app
-    app.run(debug=True) 
+    app.run(debug=True)

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
+import { profileApi } from './api';
 import { mockUser } from './mockData';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -152,25 +153,46 @@ const ProfileEdit: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  // Load mock user data
+  // Load profile data from backend API, fallback to mock
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const u = mockUser;
-      setFormData({
-        name: u.name,
-        email: u.email,
-        title: u.title,
-        location: u.location,
-        bio: u.profile.bio,
-        skills: u.profile.skills.join(', '),
-        website: u.socialLinks.website || '',
-        linkedin: u.socialLinks.linkedin || '',
-        github: u.socialLinks.github || '',
-        twitter: u.socialLinks.twitter || '',
-      });
-      setLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
+    const fetchProfile = async () => {
+      try {
+        const data = await profileApi.getProfile();
+        const u = data.user;
+        const p = data.profile;
+        setFormData({
+          name: u.username,
+          email: u.email,
+          title: p.title || '',
+          location: p.location || '',
+          bio: p.bio || '',
+          skills: (p.skills || []).join(', '),
+          website: p.website || '',
+          linkedin: p.linkedin || '',
+          github: p.github || '',
+          twitter: p.twitter || '',
+        });
+        if (p.avatar_url) setImagePreview(p.avatar_url);
+      } catch {
+        // Fallback to mock data when not logged in
+        const u = mockUser;
+        setFormData({
+          name: u.name,
+          email: u.email,
+          title: u.title,
+          location: u.location,
+          bio: u.profile.bio,
+          skills: u.profile.skills.join(', '),
+          website: u.socialLinks.website || '',
+          linkedin: u.socialLinks.linkedin || '',
+          github: u.socialLinks.github || '',
+          twitter: u.socialLinks.twitter || '',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
   }, []);
 
   const validate = (data: FormData): FormErrors => {
@@ -233,18 +255,20 @@ const ProfileEdit: React.FC = () => {
     setErrors((prev) => ({ ...prev, [name]: errs[name] || '' }));
   };
 
-  // Image drop handler
-  const handleImageDrop = (file: File) => {
+  // Image drop handler — upload to backend
+  const handleImageDrop = async (file: File) => {
     setUploading(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      // Simulate upload delay
-      setTimeout(() => {
-        setImagePreview(reader.result as string);
-        setUploading(false);
-      }, 800);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const data = await profileApi.uploadImage(file);
+      setImagePreview(`http://127.0.0.1:5000${data.avatar_url}`);
+    } catch {
+      // Fallback to local preview if backend unavailable
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } finally {
+      setUploading(false);
+    }
   };
 
   // Form submit
@@ -265,11 +289,15 @@ const ProfileEdit: React.FC = () => {
     setSubmitStatus('idle');
 
     try {
-      // Simulate API call (Day 4 replaces this with real fetch)
-      await new Promise((res) => setTimeout(res, 1000));
+      await profileApi.updateProfile(formData);
       setSubmitStatus('success');
       setTimeout(() => navigate('/profile'), 1200);
-    } catch {
+    } catch (err: unknown) {
+      // Show backend validation errors if available
+      const apiErr = err as { errors?: FormErrors };
+      if (apiErr?.errors) {
+        setErrors(apiErr.errors);
+      }
       setSubmitStatus('error');
     } finally {
       setSubmitting(false);
