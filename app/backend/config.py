@@ -5,8 +5,12 @@ class Config:
     # Flask
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev')
 
-    # Database - SQLite for tutorial simplicity
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///prok.db')
+    # Database
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL or 'sqlite:///prok.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # JWT
@@ -14,7 +18,9 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
 
     # CORS
+    CORS_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
     CORS_HEADERS = 'Content-Type'
+
 
     # File Uploads
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')

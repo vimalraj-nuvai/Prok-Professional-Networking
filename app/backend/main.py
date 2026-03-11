@@ -11,7 +11,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 # Initialize extensions
-CORS(app)
+CORS(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
 
 # Initialize database with the app
 from models.user import db
