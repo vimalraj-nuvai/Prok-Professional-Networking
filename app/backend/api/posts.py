@@ -38,6 +38,8 @@ def create_post():
     # Support both JSON and FormData
     content = request.form.get('content', '') or (request.get_json() or {}).get('content', '')
     content = content.strip()
+    category = request.form.get('category', 'General') or (request.get_json() or {}).get('category', 'General')
+    tags = request.form.get('tags', '') or (request.get_json() or {}).get('tags', '')
 
     if not content:
         return jsonify({'error': 'Post content is required'}), 400
@@ -84,6 +86,8 @@ def create_post():
         content=content,
         media_url=media_url,
         media_type=media_type,
+        category=category,
+        tags=tags,
     )
     db.session.add(post)
     db.session.commit()
@@ -99,8 +103,40 @@ def list_posts():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     per_page = min(per_page, 50)
+    search_term = request.args.get('search', '', type=str)
+    sort_by = request.args.get('sort', 'created_at', type=str)
+    category = request.args.get('category', '', type=str)
+    visibility = request.args.get('visibility', 'public', type=str)
+    tags = request.args.get('tags', '', type=str)
 
-    posts = Post.query.order_by(Post.created_at.desc()).paginate(
+    query = Post.query
+
+    # Filtering
+    if search_term:
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            Post.content.ilike(f"%{search_term}%"),
+            Post.author.has(username=search_term)
+        ))
+
+    if category:
+        query = query.filter(Post.category.ilike(f"%{category}%"))
+
+    if tags:
+        tag_list = [tag.strip() for tag in tags.split(',')]
+        for tag in tag_list:
+            query = query.filter(Post.tags.ilike(f"%{tag}%"))
+
+    # Sorting
+    if sort_by == 'likes_count':
+        query = query.order_by(Post.likes_count.desc())
+    elif sort_by == 'views_count':
+        query = query.order_by(Post.views_count.desc())
+    else:
+        query = query.order_by(Post.created_at.desc())
+
+
+    posts = query.paginate(
         page=page, per_page=per_page, error_out=False
     )
 
@@ -110,6 +146,24 @@ def list_posts():
         'page': posts.page,
         'pages': posts.pages,
     }), 200
+
+# ── GET /api/posts/categories ───────────────────────────────────────────────────
+@posts_bp.route('/api/posts/categories', methods=['GET'])
+def get_categories():
+    # In a real app, you might query this from a separate table
+    categories = [
+        "Technology", "Business", "Marketing", "Design", "Programming",
+        "Startups", "Productivity", "Careers", "Leadership"
+    ]
+    return jsonify(categories), 200
+
+# ── GET /api/posts/popular-tags ─────────────────────────────────────────────────
+@posts_bp.route('/api/posts/popular-tags', methods=['GET'])
+def get_popular_tags():
+    # In a real app, you would have a more sophisticated way of determining popular tags
+    tags = ["python", "javascript", "react", "flask", "devops", "ai", "machine-learning"]
+    return jsonify(tags), 200
+
 
 # ── Serve post media files ──────────────────────────────────────────────────────
 @posts_bp.route('/api/uploads/posts/<filename>')

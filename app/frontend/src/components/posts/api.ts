@@ -20,10 +20,25 @@ export const postsApi = {
     return data;
   },
 
-  listPosts: async (page = 1, perPage = 20) => {
-    const response = await fetch(
-      `${API_URL}/api/posts?page=${page}&per_page=${perPage}`
-    );
+  listPosts: async (options: {
+    page?: number;
+    perPage?: number;
+    search?: string;
+    sort?: string;
+    category?: string;
+    tags?: string;
+  } = {}) => {
+    const { page = 1, perPage = 20, search = '', sort = '', category = '', tags = '' } = options;
+    const params = new URLSearchParams({
+      page: String(page),
+      per_page: String(perPage),
+    });
+    if (search) params.set('search', search);
+    if (sort) params.set('sort', sort);
+    if (category) params.set('category', category);
+    if (tags) params.set('tags', tags);
+
+    const response = await fetch(`${API_URL}/api/posts?${params.toString()}`);
     if (!response.ok) throw new Error('Failed to fetch posts');
     return response.json();
   },
