@@ -159,7 +159,7 @@ const PostList: React.FC = () => {
   }, []);
 
   return (
-    <div className="max-w-2xl mx-auto p-4 pb-16">
+    <div className="max-w-7xl mx-auto p-4 pb-16">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Posts</h1>
@@ -227,7 +227,7 @@ const PostList: React.FC = () => {
           <p className="text-gray-400 text-sm mt-1">Try adjusting your filters.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {posts.map((post, index) => {
             if (posts.length === index + 1) {
               return <div ref={lastPostElementRef} key={post.id}><PostCard post={post} /></div>;
